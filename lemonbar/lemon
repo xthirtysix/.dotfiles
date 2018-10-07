@@ -1,0 +1,134 @@
+#!/bin/sh
+
+killall lemonbar
+
+# BAR
+
+GEO="1322x20+22+22"
+
+# COLORS
+
+BLK="$(grep "^*color0:" "$HOME/.Xdefaults" | tail -c 8)"
+RED="$(grep "^*color1:" "$HOME/.Xdefaults" | tail -c 8)"
+GRN="$(grep "^*color2:" "$HOME/.Xdefaults" | tail -c 8)"
+YLW="$(grep "^*color3:" "$HOME/.Xdefaults" | tail -c 8)"
+BLU="$(grep "^*color4:" "$HOME/.Xdefaults" | tail -c 8)"
+MGT="$(grep "^*color5:" "$HOME/.Xdefaults" | tail -c 8)"
+CYN="$(grep "^*color6:" "$HOME/.Xdefaults" | tail -c 8)"
+WHT="$(grep "^*color7:" "$HOME/.Xdefaults" | tail -c 8)"
+ORG="$(grep "^*color11:" "$HOME/.Xdefaults" | tail -c 8)"
+
+BKG="$(grep "^*background:" "$HOME/.Xdefaults" | tail -c 8)"
+FRG="$(grep "^*foreground:" "$HOME/.Xdefaults" | tail -c 8)"
+
+# FONTS
+
+ICO="-*-siji-*-*-*-*-10-*-*-*-*-*-*-*"
+TXT="-*-lemon-*-*-*-*-10-*-*-*-*-*-*-*"
+
+# WORKSPACES
+
+workspace() {
+WORKSPACE=$(xprop -root _NET_CURRENT_DESKTOP | tail -c2) 
+    if [ "$WORKSPACE" = "0" ]; then
+        echo -e "%{F$GRN}  %{B-}%{F$BLK}  %{F$BLK}  %{F$BLK}  "
+    elif [ "$WORKSPACE" = "1" ]; then
+        echo -e "%{F$BLK}  %{F$ORG}  %{F$BLK}  %{F$BLK}  "
+    elif [ "$WORKSPACE" = "2" ]; then
+        echo -e "%{F$BLK}%  %{F$BLK}  %{F$YLW}  %{F$BLK}  "
+    elif [ "$WORKSPACE" = "3" ]; then
+        echo -e "%{F$BLK}  %{F$BLK}  %{F$BLK}  %{F$CYN}  "
+    else
+        echo " "
+    fi
+    }
+
+# MPD
+    
+mpd() {
+PLAYING=$(mpc status | grep -o 'playing')
+PAUSED=$(mpc status | grep -o 'paused')
+MUSIC=$(mpc current)
+PLAY="%{F$CYN}  %{F$FRG}${MUSIC}"
+PAUSE="%{F$YLW}  %{F$FRG}${MUSIC}"
+UPPERPLAY=${PLAY^^}
+UPPERPAUSE=${PAUSE^^}
+if [ $PLAYING ]; then
+        echo $UPPERPLAY
+    elif [ $PAUSED ]; then
+        echo $UPPERPAUSE
+    else
+        echo "%{F$BLU}  %{F$FRG}[PLAYLIST IS EMPTY]"
+    fi
+    }
+
+# BATTERY
+
+battery() {
+STATUS=$(cat /sys/class/power_supply/BAT0/status | grep -o '\Discharging')
+CAP=$(cat /sys/class/power_supply/BAT0/capacity)
+    if [ $STATUS ]; then
+	if [ "$CAP" -ge 80 ]; then
+	    BAT="%{F$GRN} %{F$FRG}" 
+	elif [ "$CAP" -ge 20 ]; then
+	    BAT="%{F$YLW} %{F$FRG}"
+	elif [ "$CAP" -le 19 ]; then
+	    BAT="%{F$RED} %{F$FRG}"
+        fi
+        echo "${BAT}"
+    else
+	if [ "$CAP" -ge 99 ]; then
+	    BAT="%{F$GRN} %{F$FRG}"
+        elif [ "$CAP" -le 98 ]; then
+	    BAT="%{F$CYN} %{F$FRG}"
+        fi
+        echo "${BAT}"
+    fi
+    }
+
+# SOUND
+
+volume() {
+MUTE=$(amixer sget Master | grep "Mono:" | grep -o '\[on]')
+VOL=$(amixer sget Master | grep -o "...%" | sed 's/\[//' | sed 's/\%//')
+    if [ $MUTE ]; then
+        if [ "$VOL" -ge 100 ]; then
+	    SIGNAL="%{F$CYN}%{F$FRG}"
+	elif [ "$VOL" -ge 50 ]; then
+	    SIGNAL="%{F$CYN}%{F$FRG}" 
+	elif [ "$VOL" -le 49 ]; then
+	    SIGNAL="%{F$CYN}%{F$FRG}"
+	elif [ "$VOL" -le 9 ]; then
+	    SIGNAL="%{F$CYN}%{F$FRG}"
+        fi
+        echo "${SIGNAL}${VOL}"
+    else
+        echo "%{F$RED}%{F$FRG}mut"
+    fi
+    }
+
+# NETWORK
+
+wifi() {
+    if [ "$(ip link show wlp7s0 | grep 'state UP')" ]; then
+        NET="%{F$GRN} %{F$FRG}"
+    else
+        NET="%{F$RED} %{F$FRG}"
+    fi
+    echo "${NET}"
+    }
+
+# CLOCK
+
+clock() {
+DATE=$(date '+%d %a')
+TIME=$(date '+%H:%M')
+    echo "%{F$MGT} %{F$FGR}${TIME} "
+    }
+
+# LEMONBAR OUTPUT
+
+while :; do
+echo "%{l}$(workspace)%{c}$(mpd)%{r}$(wifi) $(battery) $(volume) $(clock) "
+sleep 0.05s
+done | lemonbar -p -d -g $GEO -o 1 -f $ICO -o 0 -f $TXT -F $FRG -B $BKG &

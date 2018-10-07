@@ -1,0 +1,46 @@
+#!/bin/sh
+mode='linear 20' # mode='binary'
+ 
+function linear() {
+  [[ $M = DVI-1 ]] && factor=$@ || factor=$(dotpitch $@)
+  echo $(( ($margin + $factor) - ($windows - 1) * $factor ))
+}
+ 
+function binary() {
+  echo $(( ($margin * 2) / (2 ** ($windows -1)) ))
+}
+ 
+function dotpitch() {
+  echo $@ | awk '{ print int($1 * 0.25 / 0.282 + 0.5) }'
+}
+ 
+function window_gap() {
+  margin=$(desktop_margin)
+  M=$(bspc query --monitors --desktop focused)
+  [[ $M = DVI-1 ]] || margin=$(dotpitch $margin)
+  windows=$(bspc query --desktop focused --windows | wc -l)
+  G=$($mode)
+  [[ $G -lt 1 || ! -f ~/.config/bspwm/!window_gap ]] && G=1
+  if bspc query --tree --monitor $M | grep -q ' T - \*'; then
+    bspc config --desktop focused window_gap $G
+    P=$(( $margin - $G ))
+    [[ $P -lt 0 ]] && P=0
+  else
+    P=$(desktop_margin)
+  fi
+  [[ $M = DVI-1 ]] || P=$(dotpitch $P)
+  bspc config -m $M top_padding $P
+  bspc config -m $M left_padding $P
+  bspc config -m $M bottom_padding $P
+  [[ $M = DVI-1 ]] || bspc config -m $M right_padding $P
+  conky_padding
+}
+ 
+case $@ in
+  --daemon)   bspc control --subscribe | while read line
+              do
+                window_gap
+              done
+              ;;
+         *)   window_gap ;;
+esac
